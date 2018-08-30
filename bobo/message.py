@@ -1,42 +1,42 @@
-import json
+from datetime import datetime
+from calendar import timegm
 from nacl.signing import VerifyKey
 from nacl.encoding import HexEncoder
 
-def read_header(f):
-    return json.loads(f.read(int(f.read(int(f.read(1))))))
-
-def read_signed(f):
-    header = read_header(f)
-    pos = f.tell()
-    public_key = VerifyKey(header["key"], encoder=HexEncoder)
-    public_key.verify(f.read(), HexEncoder.decode(header["sig"]))
-    f.seek(pos)
-    return read_message(f) + (header["key"],)
+from .bbencode import load, dump
 
 def read_message(f):
-    t = f.read(1)
+    size = load(f)
+    assert isinstance(size, int)
+    size += f.tell()
 
-    if t == b'S':
-        return read_signed(f)
-
-    assert t == b'P'
-    header = read_header(f)
+    header = load(f)
     pos = f.tell()
-    return (header, pos)
+    if pos < size:
+        verify_key = VerifyKey(header["k"], encoder=HexEncoder)
+        verify_key.verify(dump(header["t"]) + f.read(), HexEncoder.decode(header["s"]))
+        f.seek(pos)
+        header1 = load(f)
+        pos = f.tell()
+        assert pos == size
+        return (header1, pos, header)
+    else:
+        assert pos == size
+        return (header, pos)
 
-def format_header(header):
-    header = json.dumps(header, sort_keys=True, separators=(',',':')) + '\n'
-    size = str(len(header))
-    return (str(len(size)) + size + header).encode()
+def format_message(header, data=b'', signing_key=None, timestamp=None):
+    header = dump(header)
+    data = header + data
 
-def sign_message(private_key, data):
-    signature = HexEncoder.encode(private_key.sign(data).signature)
-    public_key = encode_public_key(private_key.verify_key)
-    header = {"key": public_key, 'sig': signature.decode()}
-    return b'S' + format_header(header) + data
+    if signing_key is not None:
+        if timestamp is None:
+            timestamp = timegm(datetime.utcnow().utctimetuple())
+        signature = HexEncoder.encode(signing_key.sign(dump(timestamp) + data).signature)
+        verify_key = encode_verify_key(signing_key.verify_key)
+        sigheader = dump({"k": verify_key, 's': signature.decode(), 't': timestamp})
+        header = sigheader + header
+        data = sigheader + data
+    return dump(len(header)) + data
 
-def format_message(header, data=b''):
-    return b'P' + format_header(header) + data
-
-def encode_public_key(public_key):
-    return public_key.encode(encoder=HexEncoder).decode()
+def encode_verify_key(verify_key):
+    return verify_key.encode(encoder=HexEncoder).decode()

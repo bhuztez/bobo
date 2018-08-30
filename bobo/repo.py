@@ -42,9 +42,10 @@ class Repo:
 
         header = message[0]
         if len(message) == 3:
-            key = message[2]
+            sigheader = message[2]
+            key = sigheader["k"]
             if header.get("type", None) == "feed":
-                self.index.add_feed_item(key, hash, header["timestamp"])
+                self.index.add_feed_item(key, hash, sigheader["t"])
                 items = self.index.list_feed_items(key)
 
                 with self.tempfile() as f:

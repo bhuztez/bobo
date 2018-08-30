@@ -10,7 +10,7 @@ from urllib.request import urlopen, Request
 from nacl.signing import SigningKey
 from nacl.encoding import HexEncoder
 
-from bobo import Repo, encode_public_key, sign_message, format_message
+from bobo import Repo, encode_verify_key, format_message
 
 ROOT = os.path.dirname(__file__)
 
@@ -21,18 +21,15 @@ def init_server(private_keys):
     repo = Repo(os.path.join(ROOT, 'server'))
 
     for key in private_keys:
-        message = format_message(
-            {"type": "feed",
-             "timestamp": timegm(datetime.utcnow().utctimetuple())})
-        message = sign_message(key, message)
+        message = format_message({"type": "feed"}, b'', key)
         with repo.tempfile() as f:
             f.write(message)
         repo.index_object(repo.add_object(f.name))
 
-def init_client(public_keys):
+def init_client(verify_keys):
     repo = Repo(os.path.join(ROOT, 'client'))
-    public_key = random.choice(public_keys)
-    repo.index.get_feed_id(encode_public_key(public_key))
+    verify_key = random.choice(verify_keys)
+    repo.index.get_feed_id(encode_verify_key(verify_key))
 
 def demo_app():
     from wsgiref.util import FileWrapper
