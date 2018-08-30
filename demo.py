@@ -5,23 +5,17 @@ import random
 from datetime import datetime
 from calendar import timegm
 from argparse import ArgumentParser
-from base64 import urlsafe_b64encode, urlsafe_b64decode
 from urllib.request import urlopen, Request
-from hashlib import scrypt
 
-from cryptography.hazmat.backends import default_backend
-from cryptography.hazmat.primitives.asymmetric.ec import generate_private_key, SECP256R1, ECDH
-from cryptography.hazmat.primitives.serialization import load_der_public_key
+from nacl.signing import SigningKey
+from nacl.encoding import HexEncoder
 
 from bobo import Repo, encode_public_key, sign_message, format_message
 
 ROOT = os.path.dirname(__file__)
 
 def keygen():
-    return generate_private_key(SECP256R1(), default_backend())
-
-def feed_key_hash(shared_secret, key):
-    return scrypt(key, salt=shared_secret, n=2**14, r=1, p=1)
+    return SigningKey.generate()
 
 def init_server(private_keys):
     repo = Repo(os.path.join(ROOT, 'server'))
@@ -48,25 +42,12 @@ def demo_app():
     def application(environ, start_response):
         path = environ["PATH_INFO"]
 
-        if path.startswith("/auth/"):
-            peer_public_key = load_der_public_key(urlsafe_b64decode(path[6:]), default_backend())
-            private_key = keygen()
-            shared_secret = private_key.exchange(ECDH(), peer_public_key)
-            public_key = encode_public_key(private_key.public_key())
-            sessions[public_key] = {
-                feed_key_hash(shared_secret, key) : key
-                for key in repo.index.list_feed_keys() }
-            start_response('200 OK', [('Content-type', 'application/octet-stream')])
-            return [public_key]
-
         if path.startswith("/feed/"):
-            public_key = urlsafe_b64decode(environ["HTTP_X_SESSION"])
-            hash = urlsafe_b64decode(path[6:])
-            key = sessions[public_key][hash]
+            key = path[6:]
             root = repo.index.get_feed_root(key)
             if root:
                 start_response('200 OK', [('Content-type', 'application/octet-stream')])
-                return [root]
+                return [root.encode()]
         elif path.startswith("/blob/"):
             try:
                 f = open(repo.full_path('cur', path[6:]), 'rb')
@@ -85,23 +66,8 @@ def sync():
     repo = Repo(os.path.join(ROOT, 'client'))
     SERVER = 'http://127.0.0.1:8000'
 
-    private_key = keygen()
-
-    def auth():
-        public_key = encode_public_key(private_key.public_key())
-        response = urlopen(SERVER + '/auth/' + urlsafe_b64encode(public_key).decode())
-        return response.read()
-
-    peer_public_key = auth()
-    shared_secret = private_key.exchange(ECDH(), load_der_public_key(peer_public_key, default_backend()))
-    peer_public_key = urlsafe_b64encode(peer_public_key)
-
     def fetch_feed_root(key):
-        hash = feed_key_hash(shared_secret, key)
-        response = urlopen(
-            Request(
-                SERVER + '/feed/' + urlsafe_b64encode(hash).decode(),
-                headers = {"X-Session": peer_public_key}))
+        response = urlopen(SERVER + '/feed/' + key)
         return response.read().decode()
 
     def fetch_blob(hash):
@@ -154,7 +120,7 @@ command = Command()
 def init():
     private_keys = [keygen() for _ in range(5)]
     init_server(private_keys)
-    init_client([key.public_key() for key in private_keys])
+    init_client([key.verify_key for key in private_keys])
 
 @command()
 def server():

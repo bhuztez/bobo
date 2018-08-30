@@ -1,4 +1,3 @@
-from binascii import hexlify, unhexlify
 import sqlite3
 
 
@@ -7,7 +6,7 @@ def create_table(cur):
 '''
 CREATE TABLE IF NOT EXISTS object (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  hash BLOB UNIQUE,
+  hash TEXT UNIQUE,
   state INTEGER
 )
 ''')
@@ -26,7 +25,7 @@ CREATE TABLE IF NOT EXISTS reference (
 '''
 CREATE TABLE IF NOT EXISTS feed (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  key BLOB UNIQUE,
+  key TEXT UNIQUE,
   root_id INTEGER REFERENCES object (id)
 )
 ''')
@@ -57,8 +56,6 @@ class Index:
             return self.conn.execute('''SELECT id FROM feed WHERE key=?''', (key,)).fetchone()[0]
 
     def get_object_id(self, hash):
-        hash = unhexlify(hash)
-
         with self.conn:
             self.conn.execute('''INSERT OR IGNORE INTO object(hash, state) VALUES (?, ?)''', (hash,0))
 
@@ -87,7 +84,7 @@ WITH RECURSIVE ancestor(object_id, ancestor_id) AS (
 SELECT object.hash FROM ancestor JOIN object on ancestor.object_id = object.id
 WHERE NOT EXISTS(SELECT 1 FROM reference WHERE ancestor.ancestor_id = reference.to_id)
 AND ancestor.ancestor_id IN (%s)''' % (','.join('?' * len(root_ids))), root_ids).fetchall()
-        return [hexlify(r[0]).decode() for r in results]
+        return [r[0] for r in results]
 
     def add_feed_item(self, key, hash, timestamp):
         feed_id = self.get_feed_id(key)
@@ -99,7 +96,7 @@ AND ancestor.ancestor_id IN (%s)''' % (','.join('?' * len(root_ids))), root_ids)
     def list_feed_items(self, key):
         with self.conn:
             results = self.conn.execute('''SELECT object.hash FROM item JOIN object ON item.id = object.id JOIN feed ON item.feed_id = feed.id WHERE feed.key=? ORDER BY object.hash''', (key,)).fetchall()
-        return [hexlify(r[0]).decode() for r in results]
+        return [r[0] for r in results]
 
     def list_feed_keys(self):
         with self.conn:
@@ -111,7 +108,7 @@ AND ancestor.ancestor_id IN (%s)''' % (','.join('?' * len(root_ids))), root_ids)
             result = self.conn.execute('''SELECT object.hash FROM feed JOIN object ON feed.root_id = object.id WHERE key=?''', (key,)).fetchone()
 
         if result:
-            return hexlify(result[0])
+            return result[0]
 
     def set_feed_root(self, key, hash):
         object_id = self.get_object_id(hash)

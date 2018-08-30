@@ -1,6 +1,6 @@
 import os
 from tempfile import NamedTemporaryFile
-from hashlib import sha512
+from hashlib import sha256
 
 from .index import Index
 from .message import read_message, format_message
@@ -23,7 +23,7 @@ class Repo:
         return NamedTemporaryFile(dir=self.full_path('tmp'), delete=False)
 
     def add_object(self, filename, hash=None):
-        h = sha512()
+        h = sha256()
 
         with open(filename, 'rb') as f:
             h.update(f.read())
