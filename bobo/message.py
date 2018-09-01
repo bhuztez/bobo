@@ -14,7 +14,7 @@ def read_message(f):
     pos = f.tell()
     if pos < size:
         verify_key = VerifyKey(header["k"], encoder=HexEncoder)
-        verify_key.verify(dump(header["t"]) + f.read(), HexEncoder.decode(header["s"]))
+        verify_key.verify(dump("t") + dump(header["t"]) + f.read(), HexEncoder.decode(header["s"]))
         f.seek(pos)
         header1 = load(f)
         pos = f.tell()
@@ -31,9 +31,9 @@ def format_message(header, data=b'', signing_key=None, timestamp=None):
     if signing_key is not None:
         if timestamp is None:
             timestamp = timegm(datetime.utcnow().utctimetuple())
-        signature = HexEncoder.encode(signing_key.sign(dump(timestamp) + data).signature)
+        signature = HexEncoder.encode(signing_key.sign(dump("t") + dump(timestamp) + data).signature)
         verify_key = encode_verify_key(signing_key.verify_key)
-        sigheader = dump({"k": verify_key, 's': signature.decode(), 't': timestamp})
+        sigheader = dump({"k": verify_key, "s": signature.decode(), "t": timestamp})
         header = sigheader + header
         data = sigheader + data
     return dump(len(header)) + data

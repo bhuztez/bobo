@@ -44,18 +44,17 @@ class Repo:
         if len(message) == 3:
             sigheader = message[2]
             key = sigheader["k"]
-            if header.get("type", None) == "feed":
-                self.index.add_feed_item(key, hash, sigheader["t"])
-                items = self.index.list_feed_items(key)
+            self.index.add_channel_entry(key, hash, sigheader["t"])
+            entries = self.index.list_channel_entries(key)
 
-                with self.tempfile() as f:
-                    f.write(format_message({"refs": items}))
+            with self.tempfile() as f:
+                f.write(format_message({"r": entries}))
 
-                root =self.add_object(f.name)
-                self.index_object(root)
-                self.index.set_feed_root(key, hash)
+            root = self.add_object(f.name)
+            self.index_object(root)
+            self.index.set_channel_root(key, hash)
 
-        for ref in header.get("refs", ()):
+        for ref in header.get("r", ()):
             self.index.add_link(hash, ref)
 
         os.rename(self.full_path('new', hash), self.full_path('cur', hash))

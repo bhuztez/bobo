@@ -14,14 +14,11 @@ from bobo import Repo, encode_verify_key, format_message
 
 ROOT = os.path.dirname(__file__)
 
-def keygen():
-    return SigningKey.generate()
-
 def init_server(private_keys):
     repo = Repo(os.path.join(ROOT, 'server'))
 
     for key in private_keys:
-        message = format_message({"type": "feed"}, b'', key)
+        message = format_message({}, b'', key)
         with repo.tempfile() as f:
             f.write(message)
         repo.index_object(repo.add_object(f.name))
@@ -29,7 +26,7 @@ def init_server(private_keys):
 def init_client(verify_keys):
     repo = Repo(os.path.join(ROOT, 'client'))
     verify_key = random.choice(verify_keys)
-    repo.index.get_feed_id(encode_verify_key(verify_key))
+    repo.index.get_channel_id(encode_verify_key(verify_key))
 
 def demo_app():
     from wsgiref.util import FileWrapper
@@ -39,9 +36,9 @@ def demo_app():
     def application(environ, start_response):
         path = environ["PATH_INFO"]
 
-        if path.startswith("/feed/"):
+        if path.startswith("/chan/"):
             key = path[6:]
-            root = repo.index.get_feed_root(key)
+            root = repo.index.get_channel_root(key)
             if root:
                 start_response('200 OK', [('Content-type', 'application/octet-stream')])
                 return [root.encode()]
@@ -63,8 +60,8 @@ def sync():
     repo = Repo(os.path.join(ROOT, 'client'))
     SERVER = 'http://127.0.0.1:8000'
 
-    def fetch_feed_root(key):
-        response = urlopen(SERVER + '/feed/' + key)
+    def fetch_channel_root(key):
+        response = urlopen(SERVER + '/chan/' + key)
         return response.read().decode()
 
     def fetch_blob(hash):
@@ -74,8 +71,8 @@ def sync():
         repo.index_object(repo.add_object(f.name, hash))
 
     def pull():
-        roots = [fetch_feed_root(key)
-                 for key in repo.index.list_feed_keys()]
+        roots = [fetch_channel_root(key)
+                 for key in repo.index.list_channel_keys()]
 
         while True:
             hashes = repo.index.find_objects_to_fetch(roots)
@@ -115,7 +112,7 @@ command = Command()
 
 @command()
 def init():
-    private_keys = [keygen() for _ in range(5)]
+    private_keys = [SigningKey.generate() for _ in range(5)]
     init_server(private_keys)
     init_client([key.verify_key for key in private_keys])
 
