@@ -3,7 +3,7 @@ from calendar import timegm
 from nacl.signing import VerifyKey
 from nacl.encoding import HexEncoder
 
-from .bbencode import load, dump
+from .fzencode import load, dump
 
 def read_message(f):
     size = load(f)

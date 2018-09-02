@@ -7,8 +7,8 @@ import sqlite3
 from nacl.signing import SigningKey
 from nacl.encoding import HexEncoder
 
-from bobo import Repo, encode_verify_key, format_message
-from bobo.index import get_chan_id
+from fzone import Repo, encode_verify_key, format_message
+from fzone.index import get_chan_id
 
 ROOT = os.path.dirname(__file__)
 

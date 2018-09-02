@@ -7,11 +7,11 @@ import os
 from io import BytesIO
 from hashlib import sha256
 
-from .bbencode import dump, load
+from .fzencode import dump, load
 from .index import get_channel_root, list_channels, find_blobs_to_fetch
 
 
-class BoboClientChannel(SSHChannel):
+class FZoneClientChannel(SSHChannel):
 
     def openFailed(self, reason):
         self.deferred.errback(reason)
@@ -20,8 +20,8 @@ class BoboClientChannel(SSHChannel):
         if not self.deferred.called:
             self.deferred.errback(Exception("remote closed"))
 
-class BoboChanClientChannel(BoboClientChannel):
-    name = b'bobo-chan'
+class FZoneChanClientChannel(FZoneClientChannel):
+    name = b'fzone-chan'
 
     def dataReceived(self, data):
         self.remote_data += data
@@ -29,8 +29,8 @@ class BoboChanClientChannel(BoboClientChannel):
     def eofReceived(self):
         self.deferred.callback(self.remote_data)
 
-class BoboBlobClientChannel(BoboClientChannel):
-    name = b'bobo-blob'
+class FZoneBlobClientChannel(FZoneClientChannel):
+    name = b'fzone-blob'
 
     def dataReceived(self, data):
         self.f.write(data)
@@ -40,8 +40,8 @@ class BoboBlobClientChannel(BoboClientChannel):
         self.f.close()
         self.deferred.callback(self.h.hexdigest())
 
-class BoboChanServerChannel(SSHChannel):
-    name = b'bobo-chan'
+class FZoneChanServerChannel(SSHChannel):
+    name = b'fzone-chan'
 
     def channelOpen(self, key):
         self.write_channel_root(key.decode())
@@ -57,8 +57,8 @@ class BoboChanServerChannel(SSHChannel):
         self.conn.sendEOF(self)
 
 
-class BoboBlobServerChannel(SSHChannel):
-    name = b'bobo-blob'
+class FZoneBlobServerChannel(SSHChannel):
+    name = b'fzone-blob'
 
     def channelOpen(self, hash):
         try:
@@ -70,20 +70,20 @@ class BoboBlobServerChannel(SSHChannel):
         self.conn.sendEOF(self)
 
 
-class BoboUser(ConchUser):
+class FZoneUser(ConchUser):
 
     def __init__(self, repo, db):
         ConchUser.__init__(self)
         self.repo = repo
         self.db = db
         self.channelLookup.update(
-            {b'bobo-chan': BoboChanServerChannel,
-             b'bobo-blob': BoboBlobServerChannel})
+            {b'fzone-chan': FZoneChanServerChannel,
+             b'fzone-blob': FZoneBlobServerChannel})
 
-class BoboConnection(SSHConnection):
+class FZoneConnection(SSHConnection):
 
     def serviceStarted(self):
-        self.transport.avatar = BoboUser(
+        self.transport.avatar = FZoneUser(
             self.transport.factory.getRepo(),
             self.transport.factory.getDBPool())
         self.transport.logoutFunction = lambda: None
@@ -103,7 +103,7 @@ class BoboConnection(SSHConnection):
 
     def fetch_channel_root(self, key):
         d = Deferred()
-        chan = BoboChanClientChannel()
+        chan = FZoneChanClientChannel()
         chan.remote_data = b''
         chan.deferred = d
         d.addCallback(lambda data: load(BytesIO(data))["r"])
@@ -113,7 +113,7 @@ class BoboConnection(SSHConnection):
 
     def fetch_blob(self, hash):
         d = Deferred()
-        chan = BoboBlobClientChannel()
+        chan = FZoneBlobClientChannel()
         repo = self.transport.avatar.repo
         chan.f = repo.tempfile()
         chan.h = sha256()
@@ -128,8 +128,8 @@ class BoboConnection(SSHConnection):
         return d
 
 
-class BoboServerFactory(SSHFactory):
-    services = {b'ssh-connection': BoboConnection}
+class FZoneServerFactory(SSHFactory):
+    services = {b'ssh-connection': FZoneConnection}
 
     def getService(self, transport, service):
         return self.services[service]

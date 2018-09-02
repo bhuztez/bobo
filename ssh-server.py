@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-from bobo import Repo
+from fzone import Repo
 ROOT = os.path.dirname(__file__)
 repo = Repo(os.path.join(ROOT, 'server'))
 
@@ -14,9 +14,9 @@ from twisted.enterprise.adbapi import ConnectionPool
 dbpool = ConnectionPool("sqlite3", repo.index(), check_same_thread=False)
 
 from twisted.conch.ssh.keys import Key
-from bobo.ssh import BoboServerFactory
+from fzone.ssh import FZoneServerFactory
 
-class ServerFactory(BoboServerFactory):
+class ServerFactory(FZoneServerFactory):
     publicKeys = {
         b'ssh-rsa': Key(PRIVATE_KEY.public_key())
     }

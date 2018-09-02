@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import os
-from bobo import Repo
+from fzone import Repo
 ROOT = os.path.dirname(__file__)
 repo = Repo(os.path.join(ROOT, 'client'))
 
@@ -10,25 +10,25 @@ dbpool = ConnectionPool("sqlite3", repo.index(), check_same_thread=False)
 
 from twisted.conch.ssh.transport import SSHClientTransport
 from twisted.internet.defer import succeed
-from bobo.ssh import BoboConnection
+from fzone.ssh import FZoneConnection
 
-class BoboClientConnection(BoboConnection):
+class FZoneClientConnection(FZoneConnection):
 
     def serviceStarted(self):
         super().serviceStarted()
         self.pull()
 
-class BoboClientTransport(SSHClientTransport):
+class FZoneClientTransport(SSHClientTransport):
     def verifyHostKey(self, hostKey, fingerprint):
         return succeed(True)
 
     def connectionSecure(self):
-        self.requestService(BoboClientConnection())
+        self.requestService(FZoneClientConnection())
 
 
 from twisted.internet.protocol import ClientFactory
-class BoboClientFactory(ClientFactory):
-    protocol = BoboClientTransport
+class FZoneClientFactory(ClientFactory):
+    protocol = FZoneClientTransport
 
     def getRepo(self):
         return repo
@@ -36,7 +36,7 @@ class BoboClientFactory(ClientFactory):
     def getDBPool(self):
         return dbpool
 
-factory = BoboClientFactory()
+factory = FZoneClientFactory()
 
 
 from twisted.python import log

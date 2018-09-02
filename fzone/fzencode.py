@@ -45,7 +45,7 @@ def encode(o):
         keys = sorted(o.keys())
         return '{}{{{}'.format(len(keys), ''.join(encode(k) + encode(o[k]) for k in keys))
 
-    raise TypeError("Object of type {} is not bbencode serializable".format(repr(type(o))))
+    raise TypeError("Object of type {} is not fzencode serializable".format(repr(type(o))))
 
 
 def dump(o):
